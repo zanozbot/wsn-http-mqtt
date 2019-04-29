@@ -6,20 +6,20 @@ extern "C" {
 	#include "bmp280/bmp280.h"
 }
 
-#define tx_size		25
-static char tx_buffer[tx_size] = "pressure:0.0Pa,temp:0.0C";
+#define SCL 14
+#define SDA 12
 
 bmp280_t bmp280_dev;
 
 // transmit data
-void transmit_nrf24() {
+void transmit_nrf24(char buffer[]) {
 
 	// turn on led1
 	write_byte_pcf(led1);
 
 	radio.powerUp();
 	radio.stopListening();
-	radio.write(&tx_buffer, sizeof(tx_buffer));
+	radio.write(&buffer, sizeof(buffer));
 	radio.powerDown();
 
 	// turn off leds
@@ -28,8 +28,9 @@ void transmit_nrf24() {
 }
 
 // read BMP280 sensor values
-extern "C" void read_bmp280() {
+void read_bmp280() {
 
+	char buffer [50];
 	float temperature, pressure;
 
 	bmp280_force_measurement(&bmp280_dev);
@@ -38,10 +39,11 @@ extern "C" void read_bmp280() {
 	};
 	bmp280_read_float(&bmp280_dev, &temperature, &pressure, NULL);
 
-	sprintf(tx_buffer, "pressure:%.1fPa,temp:%.1fC", pressure, temperature);
+	sprintf(buffer, "pressure:%.1fPa,temp:%.1fC", pressure, temperature);
 
-	printf("%s\n", tx_buffer);
-	//transmit_nrf24();
+	printf("%s\n", buffer);
+
+	// transmit_nrf24(buffer);
 
 }
 
@@ -58,6 +60,8 @@ extern "C" void user_init(void) {
 	setup_nrf();
 	radio.openWritingPipe(address);
 	radio.powerDown();
+
+	i2c_init(BUS_I2C, SCL, SDA, I2C_FREQ_100K);
 
 	// BMP280 configuration
 	bmp280_params_t params;
