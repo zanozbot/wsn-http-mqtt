@@ -12,6 +12,7 @@
 #include <task.h>
 #include <ssid_config.h>
 #include <httpd/httpd.h>
+#include <aws_iot.c>
 
 #define LED_PIN 2
 
@@ -175,4 +176,12 @@ void user_init(void)
 
     /* initialize tasks */
     xTaskCreate(&httpd_task, "HTTP Daemon", 128, NULL, 2, NULL);
+
+
+
+
+    publish_queue = xQueueCreate(3, 16);
+    xTaskCreate(&wifi_task, "wifi_task", 256, NULL, 2, NULL);
+    xTaskCreate(&beat_task, "beat_task", 256, NULL, 2, NULL);
+    xTaskCreate(&mqtt_task, "mqtt_task", 2048, NULL, 2, NULL);
 }
