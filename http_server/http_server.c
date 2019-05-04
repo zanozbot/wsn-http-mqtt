@@ -152,7 +152,7 @@ void httpd_task(void *pvParameters)
             (tWsHandler) websocket_cb);
     httpd_init();
 
-    for (;;);
+    for(;;);
 }
 
 void user_init(void)
@@ -175,13 +175,9 @@ void user_init(void)
     gpio_write(LED_PIN, true);
 
     /* initialize tasks */
-    xTaskCreate(&httpd_task, "HTTP Daemon", 128, NULL, 2, NULL);
-
-
-
-
     publish_queue = xQueueCreate(3, 16);
     xTaskCreate(&wifi_task, "wifi_task", 256, NULL, 2, NULL);
     xTaskCreate(&beat_task, "beat_task", 256, NULL, 2, NULL);
-    xTaskCreate(&mqtt_task, "mqtt_task", 2048, NULL, 2, NULL);
+    xTaskCreate(&mqtt_task, "mqtt_task", 4096, NULL, 2, NULL);
+    xTaskCreate(&httpd_task, "HTTP Daemon", 128, NULL, 2, NULL);
 }
