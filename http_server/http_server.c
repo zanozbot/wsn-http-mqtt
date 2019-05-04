@@ -13,6 +13,7 @@
 #include <ssid_config.h>
 #include <httpd/httpd.h>
 #include <aws_iot.c>
+#include <receiver.c>
 
 #define LED_PIN 2
 
@@ -173,6 +174,20 @@ void user_init(void)
     /* turn off LED */
     gpio_enable(LED_PIN, GPIO_OUTPUT);
     gpio_write(LED_PIN, true);
+
+    i2c_init(BUS_I2C, SCL, SDA, I2C_FREQ_100K);
+    gpio_enable(SCL, GPIO_OUTPUT);
+
+
+    // OTA configuration
+    ota_tftp_init_server(TFTP_PORT);
+
+    // set rx pin as input
+    gpio_enable(gpio_rx, GPIO_INPUT);
+    gpio_set_interrupt(gpio_rx, GPIO_INTTYPE_EDGE_ANY, rx_intr_handler);
+
+    // create received task
+    xTaskCreate(received_task, "message received task", 1000, NULL, 2, NULL);
 
     /* initialize tasks */
     publish_queue = xQueueCreate(3, 16);
