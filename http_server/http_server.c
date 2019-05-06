@@ -24,6 +24,10 @@ enum {
     SSI_LED_STATE
 };
 
+float temperature = 0;
+float pressure = 0;
+bmp280_t bmp280_dev;
+
 int32_t ssi_handler(int32_t iIndex, char *pcInsert, int32_t iInsertLen)
 {
     switch (iIndex) {
@@ -63,14 +67,13 @@ void websocket_task(void *pvParameter)
 
         int uptime = xTaskGetTickCount() * portTICK_PERIOD_MS / 1000;
         int heap = (int) xPortGetFreeHeapSize();
-        int temperature = xTaskGetTickCount() * portTICK_PERIOD_MS / 1000;
         int led = !gpio_read(LED_PIN);
 
         /* Generate response in JSON format */
         char response[64];
         int len = snprintf(response, sizeof (response),
                 "{\"uptime\" : \"%d\","
-                " \"temperature\" : \"%d\","
+                " \"temperature\" : \"%f\","
                 " \"heap\" : \"%d\"}", uptime, temperature, heap);
         if (len < sizeof (response))
             websocket_write(pcb, (unsigned char *) response, len, WS_TEXT_MODE);
@@ -156,6 +159,31 @@ void httpd_task(void *pvParameters)
     for(;;);
 }
 
+void bmp_task(void *pvParameters) {
+
+	//char buffer [50];
+	//float temperature, pressure;
+
+    while (1) {
+        bmp280_force_measurement(&bmp280_dev);
+        // wait for measurement to complete
+        while (bmp280_is_measuring(&bmp280_dev)) {
+        };
+        bmp280_read_float(&bmp280_dev, &temperature, &pressure, NULL);
+
+        vTaskDelay(pdMS_TO_TICKS(5000));
+    }
+
+
+
+	//sprintf(buffer, "pressure:%.1fPa,temp:%.1fC", pressure, temperature);
+
+	//printf("%s\n", buffer);
+
+	// transmit_nrf24(buffer);
+
+}
+
 void user_init(void)
 {
     uart_set_baud(0, 115200);
@@ -186,8 +214,18 @@ void user_init(void)
     gpio_enable(gpio_rx, GPIO_INPUT);
     gpio_set_interrupt(gpio_rx, GPIO_INTTYPE_EDGE_ANY, rx_intr_handler);
 
+    // BMP280 configuration
+	bmp280_params_t params;
+	bmp280_init_default_params(&params);
+	params.mode = BMP280_MODE_FORCED;
+	bmp280_dev.i2c_dev.bus = BUS_I2C;
+	bmp280_dev.i2c_dev.addr = BMP280_I2C_ADDRESS_0;
+	bmp280_init(&bmp280_dev, &params);
+
+	xTaskCreate(bmp_task, "BMP task", 1000, NULL, 2, NULL);
+
     // create received task
-    xTaskCreate(received_task, "message received task", 1000, NULL, 2, NULL);
+    // xTaskCreate(received_task, "message received task", 1000, NULL, 2, NULL);
 
     /* initialize tasks */
     publish_queue = xQueueCreate(3, 16);
