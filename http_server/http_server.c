@@ -13,7 +13,7 @@
 #include <ssid_config.h>
 #include <httpd/httpd.h>
 #include <aws_iot.c>
-#include <receiver.c>
+#include <bmp280/bmp280.h>
 
 #define LED_PIN 2
 
@@ -23,6 +23,14 @@ enum {
     SSI_TEMPERATURE,
     SSI_LED_STATE
 };
+
+float temperature = 0;
+float pressure = 0;
+bmp280_t bmp280_dev;
+
+#define SCL 14
+#define SDA 12
+#define BUS_I2C     0
 
 int32_t ssi_handler(int32_t iIndex, char *pcInsert, int32_t iInsertLen)
 {
@@ -63,14 +71,13 @@ void websocket_task(void *pvParameter)
 
         int uptime = xTaskGetTickCount() * portTICK_PERIOD_MS / 1000;
         int heap = (int) xPortGetFreeHeapSize();
-        int temperature = xTaskGetTickCount() * portTICK_PERIOD_MS / 1000;
         int led = !gpio_read(LED_PIN);
 
         /* Generate response in JSON format */
         char response[64];
         int len = snprintf(response, sizeof (response),
                 "{\"uptime\" : \"%d\","
-                " \"temperature\" : \"%d\","
+                " \"temperature\" : \"%f\","
                 " \"heap\" : \"%d\"}", uptime, temperature, heap);
         if (len < sizeof (response))
             websocket_write(pcb, (unsigned char *) response, len, WS_TEXT_MODE);
@@ -97,7 +104,7 @@ void websocket_cb(struct tcp_pcb *pcb, uint8_t *data, u16_t data_len, uint8_t mo
     switch (data[0]) {
         case 'A': // ADC
             /* This should be done on a separate thread in 'real' applications */
-            val = xTaskGetTickCount() * portTICK_PERIOD_MS / 1000;
+            val = temperature;
             break;
         case 'D': // Disable LED
             gpio_write(LED_PIN, true);
@@ -128,7 +135,7 @@ void websocket_open_cb(struct tcp_pcb *pcb, const char *uri)
     printf("WS URI: %s\n", uri);
     if (!strcmp(uri, "/stream")) {
         printf("request for streaming\n");
-        xTaskCreate(&websocket_task, "websocket_task", 256, (void *) pcb, 2, NULL);
+        xTaskCreate(&websocket_task, "websocket_task", 1024, (void *) pcb, 2, NULL);
     }
 }
 
@@ -156,20 +163,35 @@ void httpd_task(void *pvParameters)
     for(;;);
 }
 
+void bmp_task(void *pvParameters) {
+
+	//char buffer [50];
+	//float temperature, pressure;
+
+    while (1) {
+        bmp280_force_measurement(&bmp280_dev);
+        // wait for measurement to complete
+        while (bmp280_is_measuring(&bmp280_dev)) {
+        };
+        bmp280_read_float(&bmp280_dev, &temperature, &pressure, NULL);
+
+        vTaskDelay(pdMS_TO_TICKS(50000));
+    }
+
+
+
+	//sprintf(buffer, "pressure:%.1fPa,temp:%.1fC", pressure, temperature);
+
+	//printf("%s\n", buffer);
+
+	// transmit_nrf24(buffer);
+
+}
+
 void user_init(void)
 {
     uart_set_baud(0, 115200);
     printf("SDK version:%s\n", sdk_system_get_sdk_version());
-
-    struct sdk_station_config config = {
-        .ssid = WIFI_SSID,
-        .password = WIFI_PASS,
-    };
-
-    /* required to call wifi_set_opmode before station_set_config */
-    sdk_wifi_set_opmode(STATION_MODE);
-    sdk_wifi_station_set_config(&config);
-    sdk_wifi_station_connect();
 
     /* turn off LED */
     gpio_enable(LED_PIN, GPIO_OUTPUT);
@@ -179,20 +201,20 @@ void user_init(void)
     gpio_enable(SCL, GPIO_OUTPUT);
 
 
-    // OTA configuration
-    ota_tftp_init_server(TFTP_PORT);
+    // BMP280 configuration
+	bmp280_params_t params;
+	bmp280_init_default_params(&params);
+	params.mode = BMP280_MODE_FORCED;
+	bmp280_dev.i2c_dev.bus = BUS_I2C;
+	bmp280_dev.i2c_dev.addr = BMP280_I2C_ADDRESS_0;
+	bmp280_init(&bmp280_dev, &params);
 
-    // set rx pin as input
-    gpio_enable(gpio_rx, GPIO_INPUT);
-    gpio_set_interrupt(gpio_rx, GPIO_INTTYPE_EDGE_ANY, rx_intr_handler);
-
-    // create received task
-    xTaskCreate(received_task, "message received task", 1000, NULL, 2, NULL);
+	xTaskCreate(bmp_task, "BMP task", 512, NULL, 2, NULL);
 
     /* initialize tasks */
     publish_queue = xQueueCreate(3, 16);
-    xTaskCreate(&wifi_task, "wifi_task", 256, NULL, 2, NULL);
-    xTaskCreate(&beat_task, "beat_task", 256, NULL, 2, NULL);
-    xTaskCreate(&mqtt_task, "mqtt_task", 4096, NULL, 2, NULL);
-    xTaskCreate(&httpd_task, "HTTP Daemon", 128, NULL, 2, NULL);
+    xTaskCreate(&wifi_task, "wifi_task", 512, NULL, 2, NULL);
+    xTaskCreate(&beat_task, "beat_task", 512, NULL, 2, NULL);
+    xTaskCreate(&mqtt_task, "mqtt_task", 2048, NULL, 2, NULL);
+    xTaskCreate(&httpd_task, "HTTP Daemon", 512, NULL, 2, NULL);
 }

@@ -93,7 +93,7 @@
 					var stats = JSON.parse(evt.data);
 					console.log(stats);
 					document.getElementById('uptime').innerHTML = stats.uptime + ' seconds';
-					document.getElementById('temperature').innerHTML = stats.temperature + ' %';
+					document.getElementById('temperature').innerHTML = stats.temperature + ' °C';
 					document.getElementById('heap').innerHTML = stats.heap + ' bytes';
 				};
 			}

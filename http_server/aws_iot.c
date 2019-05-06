@@ -227,7 +227,7 @@ static void wifi_task(void *pvParameters) {
             WIFI_PASS, };
 
     printf("%s: Connecting to WiFi\n\r", __func__);
-    sdk_wifi_set_opmode (STATION_MODE);
+    sdk_wifi_set_opmode (STATIONAP_MODE);
     sdk_wifi_station_set_config(&config);
 
     while (1) {
