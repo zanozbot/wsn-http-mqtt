@@ -28,7 +28,6 @@
 /* certs, key, and endpoint */
 extern char *ca_cert, *client_endpoint, *client_cert, *client_key;
 
-static int wifi_alive = 0;
 static int ssl_reset;
 static SSLConnection *ssl_conn;
 static QueueHandle_t publish_queue;
@@ -38,7 +37,7 @@ static void beat_task(void *pvParameters) {
     int count = 0;
 
     while (1) {
-        if (!wifi_alive) {
+        if (sdk_wifi_station_get_connect_status() != STATION_GOT_IP) {
             vTaskDelay(1000 / portTICK_PERIOD_MS);
             continue;
         }
@@ -141,7 +140,7 @@ static void mqtt_task(void *pvParameters) {
 
     ssl_conn = (SSLConnection *) malloc(sizeof(SSLConnection));
     while (1) {
-        if (!wifi_alive) {
+        if (sdk_wifi_station_get_connect_status() != STATION_GOT_IP) {
             vTaskDelay(1000 / portTICK_PERIOD_MS);
             continue;
         }
@@ -157,7 +156,7 @@ static void mqtt_task(void *pvParameters) {
         network.mqttread = mqtt_ssl_read;
         network.mqttwrite = mqtt_ssl_write;
 
-        printf("%s: connecting to MQTT server %s ... ", __func__,
+        printf("%s: connecting to MQTT server %s ... \n", __func__,
                 client_endpoint);
         ret = ssl_connect(ssl_conn, client_endpoint, MQTT_PORT);
 
@@ -187,8 +186,9 @@ static void mqtt_task(void *pvParameters) {
         printf("done\r\n");
         mqtt_subscribe(&client, MQTT_SUB_TOPIC, MQTT_QOS1, topic_received);
         xQueueReset(publish_queue);
+        fflush(stdout);
 
-        while (wifi_alive && !ssl_reset) {
+        while (sdk_wifi_station_get_connect_status() == STATION_GOT_IP && !ssl_reset) {
             char msg[64];
             while (xQueueReceive(publish_queue, (void *) msg, 0) == pdTRUE) {
                 TickType_t task_tick = xTaskGetTickCount();
@@ -217,51 +217,6 @@ static void mqtt_task(void *pvParameters) {
         }
         printf("Connection dropped, request restart\n\r");
         ssl_destroy(ssl_conn);
-    }
-}
-
-static void wifi_task(void *pvParameters) {
-    uint8_t status = 0;
-    uint8_t retries = 30;
-    struct sdk_station_config config = { .ssid = WIFI_SSID, .password =
-            WIFI_PASS, };
-
-    printf("%s: Connecting to WiFi\n\r", __func__);
-    sdk_wifi_set_opmode (STATIONAP_MODE);
-    sdk_wifi_station_set_config(&config);
-
-    while (1) {
-        wifi_alive = 0;
-
-        while ((status != STATION_GOT_IP) && (retries)) {
-            status = sdk_wifi_station_get_connect_status();
-            printf("%s: status = %d\n\r", __func__, status);
-            if (status == STATION_WRONG_PASSWORD) {
-                printf("WiFi: wrong password\n\r");
-                break;
-            } else if (status == STATION_NO_AP_FOUND) {
-                printf("WiFi: AP not found\n\r");
-                break;
-            } else if (status == STATION_CONNECT_FAIL) {
-                printf("WiFi: connection failed\r\n");
-                break;
-            }
-            vTaskDelay(1000 / portTICK_PERIOD_MS);
-            --retries;
-        }
-
-        while ((status = sdk_wifi_station_get_connect_status())
-                == STATION_GOT_IP) {
-            if (wifi_alive == 0) {
-                printf("WiFi: Connected\n\r");
-                wifi_alive = 1;
-            }
-            vTaskDelay(500 / portTICK_PERIOD_MS);
-        }
-
-        wifi_alive = 0;
-        printf("WiFi: disconnected\n\r");
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
     }
 }
 

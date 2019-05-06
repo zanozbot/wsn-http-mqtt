@@ -135,7 +135,7 @@ void websocket_open_cb(struct tcp_pcb *pcb, const char *uri)
     printf("WS URI: %s\n", uri);
     if (!strcmp(uri, "/stream")) {
         printf("request for streaming\n");
-        xTaskCreate(&websocket_task, "websocket_task", 1024, (void *) pcb, 2, NULL);
+        xTaskCreate(&websocket_task, "websocket_task", 256, (void *) pcb, 2, NULL);
     }
 }
 
@@ -193,6 +193,16 @@ void user_init(void)
     uart_set_baud(0, 115200);
     printf("SDK version:%s\n", sdk_system_get_sdk_version());
 
+    struct sdk_station_config config = {
+        .ssid = WIFI_SSID,
+        .password = WIFI_PASS,
+    };
+
+    /* required to call wifi_set_opmode before station_set_config */
+    sdk_wifi_set_opmode(STATION_MODE);
+    sdk_wifi_station_set_config(&config);
+    sdk_wifi_station_connect();
+
     /* turn off LED */
     gpio_enable(LED_PIN, GPIO_OUTPUT);
     gpio_write(LED_PIN, true);
@@ -209,12 +219,11 @@ void user_init(void)
 	bmp280_dev.i2c_dev.addr = BMP280_I2C_ADDRESS_0;
 	bmp280_init(&bmp280_dev, &params);
 
-	xTaskCreate(bmp_task, "BMP task", 512, NULL, 2, NULL);
 
     /* initialize tasks */
     publish_queue = xQueueCreate(3, 16);
-    xTaskCreate(&wifi_task, "wifi_task", 512, NULL, 2, NULL);
-    xTaskCreate(&beat_task, "beat_task", 512, NULL, 2, NULL);
+    xTaskCreate(bmp_task, "bmp_task", 128, NULL, 2, NULL);
     xTaskCreate(&mqtt_task, "mqtt_task", 2048, NULL, 2, NULL);
-    xTaskCreate(&httpd_task, "HTTP Daemon", 512, NULL, 2, NULL);
+    xTaskCreate(&beat_task, "beat_task", 256, NULL, 2, NULL);
+    xTaskCreate(&httpd_task, "hhtp_daemon", 256, NULL, 2, NULL);
 }
