@@ -1,8 +1,3 @@
-/*
- * HTTP server example.
- *
- * This sample code is in the public domain.
- */
 #include <espressif/esp_common.h>
 #include <esp8266.h>
 #include <esp/uart.h>
@@ -12,8 +7,6 @@
 #include <task.h>
 #include <ssid_config.h>
 #include <httpd/httpd.h>
-#include <aws_iot.c>
-#include <bmp280/bmp280.h>
 
 #define LED_PIN 2
 
@@ -23,14 +16,6 @@ enum {
     SSI_TEMPERATURE,
     SSI_LED_STATE
 };
-
-float temperature = 0;
-float pressure = 0;
-bmp280_t bmp280_dev;
-
-#define SCL 14
-#define SDA 12
-#define BUS_I2C     0
 
 int32_t ssi_handler(int32_t iIndex, char *pcInsert, int32_t iInsertLen)
 {
@@ -78,7 +63,7 @@ void websocket_task(void *pvParameter)
         int len = snprintf(response, sizeof (response),
                 "{\"uptime\" : \"%d\","
                 " \"temperature\" : \"%f\","
-                " \"heap\" : \"%d\"}", uptime, temperature, heap);
+                " \"heap\" : \"%d\"}", uptime, 21.1, heap);
         if (len < sizeof (response))
             websocket_write(pcb, (unsigned char *) response, len, WS_TEXT_MODE);
 
@@ -104,7 +89,7 @@ void websocket_cb(struct tcp_pcb *pcb, uint8_t *data, u16_t data_len, uint8_t mo
     switch (data[0]) {
         case 'A': // ADC
             /* This should be done on a separate thread in 'real' applications */
-            val = temperature;
+            val = 21.1;
             break;
         case 'D': // Disable LED
             gpio_write(LED_PIN, true);
@@ -163,36 +148,7 @@ void httpd_task(void *pvParameters)
     for(;;);
 }
 
-void bmp_task(void *pvParameters) {
-
-	//char buffer [50];
-	//float temperature, pressure;
-
-    while (1) {
-        bmp280_force_measurement(&bmp280_dev);
-        // wait for measurement to complete
-        while (bmp280_is_measuring(&bmp280_dev)) {
-        };
-        bmp280_read_float(&bmp280_dev, &temperature, &pressure, NULL);
-
-        vTaskDelay(pdMS_TO_TICKS(50000));
-    }
-
-
-
-	//sprintf(buffer, "pressure:%.1fPa,temp:%.1fC", pressure, temperature);
-
-	//printf("%s\n", buffer);
-
-	// transmit_nrf24(buffer);
-
-}
-
-void user_init(void)
-{
-    uart_set_baud(0, 115200);
-    printf("SDK version:%s\n", sdk_system_get_sdk_version());
-
+void http_init() {
     struct sdk_station_config config = {
         .ssid = WIFI_SSID,
         .password = WIFI_PASS,
@@ -202,28 +158,4 @@ void user_init(void)
     sdk_wifi_set_opmode(STATION_MODE);
     sdk_wifi_station_set_config(&config);
     sdk_wifi_station_connect();
-
-    /* turn off LED */
-    gpio_enable(LED_PIN, GPIO_OUTPUT);
-    gpio_write(LED_PIN, true);
-
-    i2c_init(BUS_I2C, SCL, SDA, I2C_FREQ_100K);
-    gpio_enable(SCL, GPIO_OUTPUT);
-
-
-    // BMP280 configuration
-	bmp280_params_t params;
-	bmp280_init_default_params(&params);
-	params.mode = BMP280_MODE_FORCED;
-	bmp280_dev.i2c_dev.bus = BUS_I2C;
-	bmp280_dev.i2c_dev.addr = BMP280_I2C_ADDRESS_0;
-	bmp280_init(&bmp280_dev, &params);
-
-
-    /* initialize tasks */
-    publish_queue = xQueueCreate(3, 16);
-    xTaskCreate(bmp_task, "bmp_task", 128, NULL, 2, NULL);
-    xTaskCreate(&mqtt_task, "mqtt_task", 2048, NULL, 2, NULL);
-    xTaskCreate(&beat_task, "beat_task", 256, NULL, 2, NULL);
-    xTaskCreate(&httpd_task, "hhtp_daemon", 256, NULL, 2, NULL);
 }
