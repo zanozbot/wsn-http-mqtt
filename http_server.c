@@ -9,6 +9,7 @@
 #include <httpd/httpd.h>
 
 #define LED_PIN 2
+extern float temperature;
 
 enum {
     SSI_UPTIME,
@@ -62,8 +63,8 @@ void websocket_task(void *pvParameter)
         char response[64];
         int len = snprintf(response, sizeof (response),
                 "{\"uptime\" : \"%d\","
-                " \"temperature\" : \"%f\","
-                " \"heap\" : \"%d\"}", uptime, 21.1, heap);
+                " \"temperature\" : \"%.2f\","
+                " \"heap\" : \"%d\"}", uptime, temperature, heap);
         if (len < sizeof (response))
             websocket_write(pcb, (unsigned char *) response, len, WS_TEXT_MODE);
 
@@ -89,7 +90,7 @@ void websocket_cb(struct tcp_pcb *pcb, uint8_t *data, u16_t data_len, uint8_t mo
     switch (data[0]) {
         case 'A': // ADC
             /* This should be done on a separate thread in 'real' applications */
-            val = 21.1;
+            val = temperature;
             break;
         case 'D': // Disable LED
             gpio_write(LED_PIN, true);
