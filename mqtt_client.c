@@ -15,48 +15,32 @@
 
 #include <semphr.h>
 
-
-/* You can use http://test.mosquitto.org/ to test mqtt_client instead
- * of setting up your own MQTT server */
 #define MQTT_HOST ("m24.cloudmqtt.com")
 #define MQTT_PORT 12728
 
 #define MQTT_USER "bgntjbve"
 #define MQTT_PASS "ePEQceGyUOu6"
 
-SemaphoreHandle_t wifi_alive;
 QueueHandle_t publish_queue;
+extern float temperature;
 #define PUB_MSG_LEN 16
 
 static void  beat_task(void *pvParameters)
 {
     TickType_t xLastWakeTime = xTaskGetTickCount();
     char msg[PUB_MSG_LEN];
-    int count = 0;
 
     while (1) {
+        if (sdk_wifi_station_get_connect_status() != STATION_GOT_IP) {
+            continue;
+        }
         vTaskDelayUntil(&xLastWakeTime, 10000 / portTICK_PERIOD_MS);
         printf("beat\r\n");
-        snprintf(msg, PUB_MSG_LEN, "Beat %d\r\n", count++);
+        snprintf(msg, PUB_MSG_LEN, "%.2f\r\n", temperature);
         if (xQueueSend(publish_queue, (void *)msg, 0) == pdFALSE) {
             printf("Publish queue overflow.\r\n");
         }
     }
-}
-
-static void  topic_received(mqtt_message_data_t *md)
-{
-    int i;
-    mqtt_message_t *message = md->message;
-    printf("Received: ");
-    for( i = 0; i < md->topic->lenstring.len; ++i)
-        printf("%c", md->topic->lenstring.data[ i ]);
-
-    printf(" = ");
-    for( i = 0; i < (int)message->payloadlen; ++i)
-        printf("%c", ((char *)(message->payload))[i]);
-
-    printf("\r\n");
 }
 
 static const char *  get_my_id(void)
@@ -100,7 +84,9 @@ static void  mqtt_task(void *pvParameters)
     strcat(mqtt_client_id, get_my_id());
 
     while(1) {
-        xSemaphoreTake(wifi_alive, portMAX_DELAY);
+        if (sdk_wifi_station_get_connect_status() != STATION_GOT_IP) {
+            continue;
+        }
         printf("%s: started\n\r", __func__);
         printf("%s: (Re)connecting to MQTT server %s ... ",__func__,
                MQTT_HOST);
@@ -130,7 +116,6 @@ static void  mqtt_task(void *pvParameters)
             continue;
         }
         printf("done\r\n");
-        mqtt_subscribe(&client, "/esptopic", MQTT_QOS1, topic_received);
         xQueueReset(publish_queue);
 
         while(1){
@@ -145,7 +130,7 @@ static void  mqtt_task(void *pvParameters)
                 message.dup = 0;
                 message.qos = MQTT_QOS1;
                 message.retained = 0;
-                ret = mqtt_publish(&client, "/beat", &message);
+                ret = mqtt_publish(&client, "/temperature", &message);
                 if (ret != MQTT_SUCCESS ){
                     printf("error while publishing message: %d\n", ret );
                     break;
@@ -162,54 +147,6 @@ static void  mqtt_task(void *pvParameters)
     }
 }
 
-static void  wifi_task(void *pvParameters)
-{
-    uint8_t status  = 0;
-    uint8_t retries = 30;
-    struct sdk_station_config config = {
-        .ssid = WIFI_SSID,
-        .password = WIFI_PASS,
-    };
-
-    printf("WiFi: connecting to WiFi\n\r");
-    sdk_wifi_set_opmode(STATION_MODE);
-    sdk_wifi_station_set_config(&config);
-
-    while(1)
-    {
-        while ((status != STATION_GOT_IP) && (retries)){
-            status = sdk_wifi_station_get_connect_status();
-            printf("%s: status = %d\n\r", __func__, status );
-            if( status == STATION_WRONG_PASSWORD ){
-                printf("WiFi: wrong password\n\r");
-                break;
-            } else if( status == STATION_NO_AP_FOUND ) {
-                printf("WiFi: AP not found\n\r");
-                break;
-            } else if( status == STATION_CONNECT_FAIL ) {
-                printf("WiFi: connection failed\r\n");
-                break;
-            }
-            vTaskDelay( 1000 / portTICK_PERIOD_MS );
-            --retries;
-        }
-        if (status == STATION_GOT_IP) {
-            printf("WiFi: Connected\n\r");
-            xSemaphoreGive( wifi_alive );
-            taskYIELD();
-        }
-
-        while ((status = sdk_wifi_station_get_connect_status()) == STATION_GOT_IP) {
-            xSemaphoreGive( wifi_alive );
-            taskYIELD();
-        }
-        printf("WiFi: disconnected\n\r");
-        sdk_wifi_station_disconnect();
-        vTaskDelay( 1000 / portTICK_PERIOD_MS );
-    }
-}
-
 void mqtt_init() {
-    vSemaphoreCreateBinary(wifi_alive);
     publish_queue = xQueueCreate(3, PUB_MSG_LEN);
 }

@@ -13,9 +13,9 @@
 #define SDA 12
 #define BUS_I2C     0
 
-static float temperature = 0;
-static float pressure = 0;
 bmp280_t bmp280_dev;
+float temperature = 0;
+float pressure = 0; 
 
 void bmp_init() {
     i2c_init(BUS_I2C, SCL, SDA, I2C_FREQ_100K);
