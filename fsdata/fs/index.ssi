@@ -15,11 +15,11 @@
 		</ul>
 
 		<div class="grid main">
-			<h1>ESP8266 HTTP Server</h1>
+			<h1>Processing of temperature using WEMOS D1 mini</h1>
 
 			<div class="alert alert-done">HTTP Server is up and running.</div>
 
-			<p>Lorem ipsum</p>
+			<p>Seminar work for the Wireless Sensor Network course.</p>
 			
 		</div>
 	</body>
