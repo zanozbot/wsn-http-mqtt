@@ -19,7 +19,7 @@ ul.navbar li a:hover:not(.active) {
 	background-color: #111;
 }
 ul.navbar li a.active {
-	background-color: #09a0f6;
+	background-color: #f6bf09;
 }
 @media screen and (max-width: 600px){
 	ul.navbar li.right, 
@@ -34,7 +34,7 @@ ul.navbar li a.active {
 }
 .onoffswitch-label {
 	display: block; overflow: hidden; cursor: pointer;
-	border: 2px solid #03A9F4; border-radius: 20px;
+	border: 2px solid #f6bf09; border-radius: 20px;
 }
 .onoffswitch-inner {
 	display: block; width: 200%; margin-left: -100%;
@@ -49,7 +49,7 @@ ul.navbar li a.active {
 	content: "ON";
 	text-align: left;
 	padding-left: 14px;
-	background-color: #E1F5FE; color: #03A9F4;
+	background-color: #E1F5FE; color: #f6bf09;
 }
 .onoffswitch-inner:after {
 	content: "OFF";
@@ -62,7 +62,7 @@ ul.navbar li a.active {
 	background: #FFFFFF;
 	position: absolute; top: 0; bottom: 0;
 	right: 56px;
-	border: 2px solid #03A9F4; border-radius: 20px;
+	border: 2px solid #f6bf09; border-radius: 20px;
 	transition: all 0.3s ease-in 0s; 
 }
 .onoffswitch-checkbox:checked + .onoffswitch-label .onoffswitch-inner {
