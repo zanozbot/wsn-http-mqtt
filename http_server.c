@@ -8,14 +8,12 @@
 #include <ssid_config.h>
 #include <httpd/httpd.h>
 
-#define LED_PIN 2
 extern float temperature;
 
 enum {
     SSI_UPTIME,
     SSI_FREE_HEAP,
-    SSI_TEMPERATURE,
-    SSI_LED_STATE
+    SSI_TEMPERATURE
 };
 
 int32_t ssi_handler(int32_t iIndex, char *pcInsert, int32_t iInsertLen)
@@ -27,9 +25,6 @@ int32_t ssi_handler(int32_t iIndex, char *pcInsert, int32_t iInsertLen)
             break;
         case SSI_FREE_HEAP:
             snprintf(pcInsert, iInsertLen, "%d", (int) xPortGetFreeHeapSize());
-            break;
-        case SSI_LED_STATE:
-            snprintf(pcInsert, iInsertLen, (GPIO.OUT & BIT(LED_PIN)) ? "Off" : "On");
             break;
         default:
             snprintf(pcInsert, iInsertLen, "N/A");
@@ -57,7 +52,6 @@ void websocket_task(void *pvParameter)
 
         int uptime = xTaskGetTickCount() * portTICK_PERIOD_MS / 1000;
         int heap = (int) xPortGetFreeHeapSize();
-        int led = !gpio_read(LED_PIN);
 
         /* Generate response in JSON format */
         char response[64];
@@ -91,14 +85,6 @@ void websocket_cb(struct tcp_pcb *pcb, uint8_t *data, u16_t data_len, uint8_t mo
         case 'A': // ADC
             /* This should be done on a separate thread in 'real' applications */
             val = temperature;
-            break;
-        case 'D': // Disable LED
-            gpio_write(LED_PIN, true);
-            val = 0xDEAD;
-            break;
-        case 'E': // Enable LED
-            gpio_write(LED_PIN, false);
-            val = 0xBEEF;
             break;
         default:
             printf("Unknown command\n");
@@ -135,7 +121,6 @@ void httpd_task(void *pvParameters)
         "uptime", // SSI_UPTIME
         "heap",   // SSI_FREE_HEAP
         "temperature",   // SSI_TEMPERATURE
-        "led"     // SSI_LED_STATE
     };
 
     /* register handlers and start the server */
