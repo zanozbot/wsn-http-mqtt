@@ -39,7 +39,7 @@ void bmp_task(void *pvParameters) {
         };
         bmp280_read_float(&bmp280_dev, &temperature, &pressure, NULL);
 
-        vTaskDelay(pdMS_TO_TICKS(50000));
+        vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
 }

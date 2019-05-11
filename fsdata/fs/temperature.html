@@ -19,7 +19,7 @@
 			<div id="status_box" class="alert alert-info">Loading..</div>
 			
 			<div class="cover" align="center">
-				<canvas id="chartCanvas" width="512" height="100"></canvas>
+				<canvas id="chartCanvas" width="1012" height="500"></canvas>
 			</div>
 
 			<h1>Server Status</h1>
@@ -55,7 +55,7 @@
 				console.log(text);
 			}
 			function startPolling() {
-				var chart = new SmoothieChart({millisPerPixel:11,grid:{fillStyle:'#ffffff',strokeStyle:'#ffffff',borderVisible:false},
+				var chart = new SmoothieChart({millisPerPixel:410,grid:{fillStyle:'#ffffff',strokeStyle:'#ffffff',borderVisible:false},
 					labels:{fillStyle:'#000000'},maxValue:100,minValue:0});
 				chart.addTimeSeries(series, {lineWidth:2,strokeStyle:'#03a9f4',fillStyle:'#f1f5fa'});
 				chart.streamTo(document.getElementById("chartCanvas"), 500);
