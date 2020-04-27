@@ -1,5 +1,6 @@
 # Processing of temperature using WEMOS D1 mini 
-> Seminar work for the Wireless Sensor Network course
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 This article demonstrates how to set up your own ESP8266 WiFi-enabled micro-controller (in our case WEMOS D1 mini)
 to read the temperature, send it to the MQTT broker and run the HTTP server alongside, which shows the real 
